@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: erp
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ./backend
+    environment:
+      # CHOOSE ONE of the next two lines and delete the other
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/erp
+      # DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/erp
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/requirements.txt:/app/requirements.txt
