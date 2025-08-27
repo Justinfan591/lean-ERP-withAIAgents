@@ -4,8 +4,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.engine import create_engine
+from app.routers.items import router as items_router
+from app.routers.sim import router as sim_router
+
 
 app = FastAPI(title="Lean AI-ERP")
+
+#Including the routers
+app.include_router(items_router)
+app.include_router(sim_router)
 
 # CORS (put AFTER app = FastAPI(...))
 app.add_middleware(
@@ -15,6 +22,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 def health():
