@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGet, apiPostBE } from "../lib/api";
 import type { Summary } from "../types";
 import { Play, FastForward } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -9,12 +9,14 @@ export default function TopBar() {
   const { data } = useQuery<Summary>({ queryKey: ["summary"], queryFn: () => apiGet("/state/summary") });
 
   const { mutate: step, isPending } = useMutation({
-    mutationFn: () => apiPost("/sim/tick"),
+    mutationFn: () => apiPostBE("/sim/tick"), // <- now hitting backend
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["summary"] });
-      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["summary"] }); // still mocked
+      qc.invalidateQueries({ queryKey: ["events"] });  // still mocked
+      qc.invalidateQueries({ queryKey: ["items"] });   // refresh items list
     },
   });
+  
 
   const [auto, setAuto] = useState(false);
   useEffect(() => {

@@ -10,7 +10,7 @@ type Item = {
 };
 
 export default function ItemsPanel() {
-  const { data, isLoading, isError, error } = useQuery<Item[]>({
+  const { data = [], isLoading, isError, error } = useQuery<Item[]>({
     queryKey: ["items"],
     queryFn: () => apiGetBE("/items"),
     staleTime: 5_000, // feel snappy but not too chatty
