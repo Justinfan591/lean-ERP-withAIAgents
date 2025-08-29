@@ -84,5 +84,11 @@ class SimState(Base):
     id: Mapped[int] = mapped_column(primary_key=True)  # always 1
     current_day: Mapped[int] = mapped_column(default=0)
 
-# Example (optional) constraint pattern if you add negatives later:
-# __table_args__ = (CheckConstraint("qty >= 0", name="ck_qty_nonneg"),)
+class ItemMovement(Base):
+    __tablename__ = "item_movement"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("item.id"))
+    ts: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    move_type: Mapped[str] = mapped_column(String(16))  # "IN" | "OUT" | "ADJUST"
+    qty: Mapped[int]
+    note: Mapped[str] = mapped_column(String(200))

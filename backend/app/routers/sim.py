@@ -4,6 +4,18 @@ from app.db import engine
 
 router = APIRouter(tags=["sim"])
 
+@router.get("/sim/day")
+def sim_day():
+    with engine.connect() as conn:
+        # ensure a row exists (defensive)
+        conn.execute(text("""
+            INSERT INTO sim_state (id, current_day)
+            VALUES (1, 1)
+            ON CONFLICT(id) DO NOTHING
+        """))
+        day = conn.execute(text("SELECT current_day FROM sim_state WHERE id = 1")).scalar_one()
+    return {"day": day}
+
 @router.post("/sim/tick")
 def sim_tick():
     with engine.begin() as conn:

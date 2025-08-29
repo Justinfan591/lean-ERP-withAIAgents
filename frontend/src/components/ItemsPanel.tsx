@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiGetBE } from "../lib/api";
+import { useState } from "react";
+import ItemDrawer from "./ItemDrawer";
 
 type Item = {
   id: number;
@@ -16,10 +18,10 @@ export default function ItemsPanel() {
     staleTime: 5_000, // feel snappy but not too chatty
   });
 
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
   if (isLoading) {
-    return (
-      <div className="p-4 text-sm text-zinc-400">Loading items…</div>
-    );
+    return <div className="p-4 text-sm text-zinc-400">Loading items…</div>;
   }
   if (isError) {
     return (
@@ -29,13 +31,14 @@ export default function ItemsPanel() {
     );
   }
 
-  const items = data ?? [];
+  const items = data;
 
   return (
     <div className="p-4">
       <h3 className="text-sm font-semibold tracking-wide text-zinc-200 mb-3">
         Items (live from backend)
       </h3>
+
       <div className="rounded-2xl border border-zinc-800 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-zinc-900/50">
@@ -53,12 +56,17 @@ export default function ItemsPanel() {
               return (
                 <tr
                   key={it.id}
-                  className="border-t border-zinc-800 hover:bg-zinc-900/30"
+                  className="border-t border-zinc-800 hover:bg-zinc-900/30 cursor-pointer"
+                  onClick={() => setSelectedId(it.id)}
                 >
                   <td className="px-3 py-2 font-mono">{it.sku}</td>
                   <td className="px-3 py-2">{it.name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{it.on_hand}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{it.reorder_point}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {it.on_hand}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {it.reorder_point}
+                  </td>
                   <td className="px-3 py-2 text-right">
                     <span
                       className={
@@ -75,6 +83,7 @@ export default function ItemsPanel() {
                 </tr>
               );
             })}
+
             {items.length === 0 && (
               <tr>
                 <td className="px-3 py-6 text-center text-zinc-500" colSpan={5}>
@@ -85,6 +94,9 @@ export default function ItemsPanel() {
           </tbody>
         </table>
       </div>
+
+      {/* Drawer mounts here */}
+      <ItemDrawer itemId={selectedId} onClose={() => setSelectedId(null)} />
     </div>
   );
 }
