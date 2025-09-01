@@ -39,7 +39,7 @@ export default function ItemsPanel() {
         Items (live from backend)
       </h3>
 
-      <div className="rounded-2xl border border-zinc-800 overflow-hidden">
+      <div className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-sm shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-zinc-900/50">
             <tr className="text-zinc-400">

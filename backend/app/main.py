@@ -11,12 +11,17 @@ from app.db import engine
 # Routers
 from app.routers.items import router as items_router
 from app.routers.sim import router as sim_router
+from app.routers.agents import router as agents_router
+
+
 
 app = FastAPI(title="Lean AI-ERP")
 
 # Routers (existing)
 app.include_router(items_router)
 app.include_router(sim_router)
+app.include_router(agents_router)
+
 
 # CORS (keep 5173 + 127.0.0.1:5173 for Vite)
 app.add_middleware(
@@ -46,7 +51,7 @@ def db_ping():
 # --- Bootstrap: ensure base tables exist and seed minimal rows ---
 # This runs once on import; perfect for dev.
 with engine.begin() as conn:
-    # Ensure sim_state row exists (self-heal for /sim/tick)
+    # sim state (for /sim/tick)
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS sim_state (
             id INTEGER PRIMARY KEY,
@@ -55,7 +60,7 @@ with engine.begin() as conn:
     """))
     conn.execute(text("INSERT OR IGNORE INTO sim_state (id, current_day) VALUES (1, 1)"))
 
-    # Ensure item table exists (you may already have this from step 1)
+    # items (static master data; on_hand dynamic starts at 0)
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS item (
             id INTEGER PRIMARY KEY,
@@ -70,18 +75,7 @@ with engine.begin() as conn:
         )
     """))
 
-    # Seed items if empty (so you see something in the UI)
-    count_items = conn.execute(text("SELECT COUNT(*) FROM item")).scalar_one()
-    if count_items == 0:
-        conn.execute(text("""
-            INSERT INTO item (id, sku, name, uom, reorder_point, reorder_qty, safety_stock, lead_time_days, on_hand)
-            VALUES
-            (1,'FG-BOLT','Hex Bolt','pcs',60,80,20,7,120),
-            (2,'FG-NUT','Hex Nut','pcs',50,80,10,7,24),
-            (3,'RM-STEEL','Steel Rod','kg',200,200,50,10,500)
-        """))
-
-    # Movements table for Milestone 2
+    # movements (dynamic; start empty)
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS item_movement (
             id INTEGER PRIMARY KEY,
@@ -94,14 +88,39 @@ with engine.begin() as conn:
         )
     """))
 
-    # Seed a few movements if empty (so clicking an item shows data)
-    count_mv = conn.execute(text("SELECT COUNT(*) FROM item_movement")).scalar_one()
-    if count_mv == 0:
+    # purchase orders (dynamic; start empty)
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS purchase_order (
+            id INTEGER PRIMARY KEY,
+            item_id INTEGER NOT NULL,
+            qty INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'OPEN', -- OPEN | CLOSED | CANCELED
+            created_at DATETIME DEFAULT (CURRENT_TIMESTAMP),
+            note TEXT,
+            FOREIGN KEY(item_id) REFERENCES item(id)
+        )
+    """))
+
+    # event log (dynamic; start empty)
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS event_log (
+            id INTEGER PRIMARY KEY,
+            ts DATETIME DEFAULT (CURRENT_TIMESTAMP),
+            actor TEXT,
+            event_type TEXT,
+            payload_json TEXT
+        )
+    """))
+
+    # Seed items only if table is empty — on_hand = 0 by design
+    count_items = conn.execute(text("SELECT COUNT(*) FROM item")).scalar_one()
+    if count_items == 0:
         conn.execute(text("""
-            INSERT INTO item_movement (item_id, ts, move_type, qty, note) VALUES
-            (1, datetime('now','-3 days'), 'OUT', 15, 'WO-101 consumption'),
-            (1, datetime('now','-1 days'), 'IN',  40, 'PO-5001 received'),
-            (2, datetime('now','-2 days'), 'OUT', 8,  'Pack order #A12')
+            INSERT INTO item (id, sku, name, uom, reorder_point, reorder_qty, safety_stock, lead_time_days, on_hand)
+            VALUES
+              (1,'FG-BOLT','Hex Bolt','pcs',60,80,20,7,0),
+              (2,'FG-NUT','Hex Nut','pcs',50,80,10,7,0),
+              (3,'RM-STEEL','Steel Rod','kg',200,200,50,10,0)
         """))
 
 # --- Movements router (Milestone 2) ---
@@ -130,3 +149,4 @@ app.include_router(movements_router)
 @app.get("/")
 def root():
     return {"ok": True, "try": ["/items", "/sim/tick (POST)", "/items/1/movements?days=60", "/docs"]}
+

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGetBE, apiPostBE } from "../lib/api";
+import { flashFlow } from "../lib/flowBus";
 
 type Movement = {
   ts: string;
@@ -32,6 +33,9 @@ export default function ItemDrawer({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["items"] });
       qc.invalidateQueries({ queryKey: ["movements", itemId] });
+    // simple rule: if it's an OUT on RM item -> RM->FG flow; if IN on FG -> FG->RM (choose what fits your logic)
+  // Start simple: always flash RM->FG
+  flashFlow("RM", "FG");
     },
   });
 
