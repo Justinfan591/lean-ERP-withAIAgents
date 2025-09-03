@@ -36,28 +36,34 @@ export default function App() {
     []
   );
 
-  // Compute anchors from ANY element with data-flow-anchor="ID"
+  // Compute anchors from elements with data-flow-anchor="ID", scoped to the board
   const recomputeAnchors = () => {
     const root = overlayRootRef.current;
     if (!root) return;
 
-    const rootRect = root.getBoundingClientRect();
-    const nodes = root.querySelectorAll<HTMLElement>("[data-flow-anchor]");
+    // Only look inside the board scope to avoid picking anchors from side panels
+    const scope = root.querySelector<HTMLElement>('[data-flow-scope="board"]') ?? root;
 
-    const next: Anchor[] = [];
+    const rootRect = root.getBoundingClientRect();
+    const nodes = scope.querySelectorAll<HTMLElement>("[data-flow-anchor]");
+
+    const found: Anchor[] = [];
     nodes.forEach((el) => {
       const id = el.dataset.flowAnchor?.trim();
       if (!id) return;
       const r = el.getBoundingClientRect();
-      next.push({
+      found.push({
         id,
         x: r.left - rootRect.left + r.width / 2,
         y: r.top - rootRect.top + r.height / 2,
       });
     });
 
+    // Prefer the FIRST occurrence of each id (tile) rather than the last
     const byId = new Map<string, Anchor>();
-    next.forEach((a) => byId.set(a.id, a));
+    for (const a of found) {
+      if (!byId.has(a.id)) byId.set(a.id, a);
+    }
     setAnchors(Array.from(byId.values()));
   };
 
@@ -69,6 +75,7 @@ export default function App() {
 
     const observeAll = () => {
       overlayRootRef.current
+        ?.querySelector<HTMLElement>('[data-flow-scope="board"]')
         ?.querySelectorAll<HTMLElement>("[data-flow-anchor]")
         .forEach((el) => ro.observe(el));
     };
@@ -124,26 +131,22 @@ export default function App() {
       <DevBanner />
       <TopBar />
 
-      {/* Your existing layout; just add small data-flow-anchor wrappers */}
+      {/* Layout (no outer anchors here) */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr", gap: 16, padding: "12px 16px" }}>
+        {/* LEFT column: no SUP anchor here; SUP lives inside GameBoard tile */}
         <div>
-          <div data-flow-anchor="SUP">
-            <ItemsPanel />
-          </div>
+          <ItemsPanel />
           <PlannerPanel />
         </div>
 
-        <div>
-          {/* Ideally place data-flow-anchor="WH" on the actual Warehouse tile *inside* GameBoard */}
-          <div data-flow-anchor="WH">
-            <GameBoard />
-          </div>
+        {/* MIDDLE column: scope anchors to just the board */}
+        <div data-flow-scope="board">
+          <GameBoard />
         </div>
 
+        {/* RIGHT column: no CUST anchor here; CUST lives inside GameBoard tile */}
         <div>
-          <div data-flow-anchor="CUST">
-            <AgentConsole />
-          </div>
+          <AgentConsole />
           <EventFeed />
         </div>
       </div>
