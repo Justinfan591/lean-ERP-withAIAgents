@@ -1,8 +1,10 @@
+// src/components/TopBar.tsx
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiGetBE, apiPostBE } from "../lib/api";
 import type { Summary } from "../types";
 import { Play, FastForward } from "lucide-react";
 import { useState, useEffect } from "react";
+import { pulseFlow } from "../lib/flowBus"; // <-- add this
 
 export default function TopBar() {
   const qc = useQueryClient();
@@ -19,10 +21,24 @@ export default function TopBar() {
     queryFn: () => apiGetBE("/sim/day"),
   });
 
+  // Helper: animate impulses for a "day tick"
+  const animateDayTick = () => {
+    // Feel free to tune these to match your sim volume
+    pulseFlow("SUP", "WH",   { count: 3, gapMs: 90,  durationMs: 800 });
+    pulseFlow("WH", "CUST",  { count: 3, gapMs: 90,  durationMs: 800 });
+    // optional acknowledgements/returns:
+    pulseFlow("CUST", "WH",  { count: 1, gapMs: 120, durationMs: 850 });
+    pulseFlow("WH", "SUP",   { count: 1, gapMs: 120, durationMs: 850 });
+  };
+
   // Step now hits real backend; also refresh live day + items
   const { mutate: step, isPending } = useMutation({
     mutationFn: () => apiPostBE("/sim/tick"),
     onSuccess: () => {
+      // Kick the visuals on success (keeps UI in sync with server state)
+      animateDayTick();
+
+      // refresh caches
       qc.invalidateQueries({ queryKey: ["summary"] }); // mocked still ok
       qc.invalidateQueries({ queryKey: ["events"] });  // mocked
       qc.invalidateQueries({ queryKey: ["items"] });   // live items refresh
@@ -34,13 +50,15 @@ export default function TopBar() {
   const [auto, setAuto] = useState(false);
   useEffect(() => {
     if (!auto) return;
-    const id = setInterval(() => step(), 1200);
+    const id = setInterval(() => {
+      // Fire the mutation; onSuccess will animate + invalidate
+      step();
+    }, 1200);
     return () => clearInterval(id);
   }, [auto, step]);
 
   return (
     <div className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/70 border-b border-neutral-800">
-      {/* Prefer live day; fall back to mocked summary; then to … */}
       <div className="text-lg font-semibold">
         Lean AI-ERP — Day {simDay?.day ?? summary?.day ?? "…"}
       </div>
@@ -59,9 +77,13 @@ export default function TopBar() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => step()}
+            onClick={() => {
+              // Optional: pre-animate for instant feedback, even before server responds
+              animateDayTick();
+              step();
+            }}
             disabled={isPending}
-            className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 flex items-center gap-2"
+            className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 flex items-center gap-2 disabled:opacity-60"
           >
             <Play size={16} /> Step
           </button>
