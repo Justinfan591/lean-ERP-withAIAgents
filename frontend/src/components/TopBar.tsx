@@ -24,11 +24,11 @@ export default function TopBar() {
   // Helper: animate impulses for a "day tick"
   const animateDayTick = () => {
     // Feel free to tune these to match your sim volume
-    pulseFlow("SUP", "WH",   { count: 3, gapMs: 90,  durationMs: 800 });
-    pulseFlow("WH", "CUST",  { count: 3, gapMs: 90,  durationMs: 800 });
+    pulseFlow("SUP","WH", { kind:"order", qty:12, count:3, gapMs:90, durationMs:800 });
+    pulseFlow("WH", "CUST", { kind:"order", qty:12, count:3, gapMs:90, durationMs:800 });
     // optional acknowledgements/returns:
-    pulseFlow("CUST", "WH",  { count: 1, gapMs: 120, durationMs: 850 });
-    pulseFlow("WH", "SUP",   { count: 1, gapMs: 120, durationMs: 850 });
+    pulseFlow("CUST", "WH",  { kind:"order", qty:12, count:3, gapMs:90, durationMs:800 });
+    pulseFlow("WH", "SUP",   { kind:"order", qty:12, count:3, gapMs:90, durationMs:800 });
   };
 
   // Step now hits real backend; also refresh live day + items

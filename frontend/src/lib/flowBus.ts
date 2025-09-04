@@ -18,12 +18,12 @@ export const flashFlow = (from: string, to: string) => emit<FlowFlashDetail>("fl
 
 // NEW: pulse API
 export type FlowPulseDetail = {
-  from: string;
-  to: string;
-  durationMs?: number; // default 900
-  count?: number;      // how many pulses in a train (default 1)
-  gapMs?: number;      // delay between pulses (default 120)
+  from: string; to: string;
+  kind?: "order" | "ship";
+  qty?: number;
+  durationMs?: number; count?: number; gapMs?: number;
 };
+
 export const onFlowPulse = (h: Handler<FlowPulseDetail>) => on<FlowPulseDetail>("pulse", h);
 export const pulseFlow = (from: string, to: string, opts: Omit<FlowPulseDetail, "from" | "to"> = {}) =>
   emit<FlowPulseDetail>("pulse", { from, to, ...opts });
