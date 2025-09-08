@@ -38,6 +38,13 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
       .filter(Boolean) as { flow: Flow; from: Anchor; to: Anchor }[];
   }, [anchors, flows]);
 
+  // tiny helper to offset perpendicular to a line (positive = one side, negative = the other)
+  const offsetPoint = (x: number, y: number, dx: number, dy: number, k: number) => {
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: x + (-dy / len) * k, y: y + (dx / len) * k };
+  };
+
+
   // RAF tick to update pulse positions
   const [, setTick] = useState(0);
   const rafRef = useRef<number | null>(null);
@@ -54,13 +61,6 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
 
   const now = performance.now();
 
-  // INSERT A: small helper to offset points perpendicular to a link (for lanes)
-  const offsetPoint = (x: number, y: number, dx: number, dy: number, k: number) => {
-    const len = Math.hypot(dx, dy) || 1;
-    // perpendicular vector (-dy, dx)
-    return { x: x + (-dy / len) * k, y: y + (dx / len) * k };
-  };
-
   return (
     <>
       <svg
@@ -73,46 +73,80 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
           zIndex: 50,
         }}
       >
-        <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" />
-          </marker>
-          <marker id="arrowhead-flash" markerWidth="12" markerHeight="8" refX="12" refY="4" orient="auto">
-            <polygon points="0 0, 12 4, 0 8" />
-          </marker>
-        </defs>
+<defs>
+  {/* ORDER lane head */}
+  <marker
+    id="head-order"
+    markerWidth="12"
+    markerHeight="8"
+    refX="10"
+    refY="4"
+    orient="auto"
+    markerUnits="strokeWidth"
+  >
+    <polygon points="0,0 12,4 0,8" fill="currentColor" />
+  </marker>
 
-        {/* static links */}
-        {lines.map(({ flow, from, to }) => {
-          const dx = to.x - from.x;
-          const dy = to.y - from.y;
-          const len = Math.hypot(dx, dy);
-          const isFlashing = !!flashed?.has(flow.id);
+  {/* SHIP lane head */}
+  <marker
+    id="head-ship"
+    markerWidth="12"
+    markerHeight="8"
+    refX="10"
+    refY="4"
+    orient="auto"
+    markerUnits="strokeWidth"
+  >
+    <polygon points="0,0 12,4 0,8" fill="currentColor" />
+  </marker>
+</defs>
 
-          return (
-            <line
-              key={flow.id}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke="currentColor"
-              strokeWidth={isFlashing ? 3 : 2}
-              markerEnd={`url(#${isFlashing ? "arrowhead-flash" : "arrowhead"})`}
-              className={isFlashing ? "flow-line flashing" : "flow-line"}
-              style={
-                isFlashing
-                  ? ({
-                      strokeDasharray: `${Math.max(8, Math.min(16, len / 12))} ${Math.max(
-                        6,
-                        Math.min(14, len / 18)
-                      )}`,
-                    } as React.CSSProperties)
-                  : undefined
-              }
-            />
-          );
-        })}
+
+        {/* static links: two parallel lanes (order vs ship) */}
+{lines.map(({ flow, from, to }) => {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+
+  // Wider lane separation to avoid overlap artifacts
+  const SEP = 12;
+
+  const fromOrder = offsetPoint(from.x, from.y, dx, dy,  SEP);
+  const toOrder   = offsetPoint(to.x,   to.y,   dx, dy,  SEP);
+  const fromShip  = offsetPoint(from.x, from.y, dx, dy, -SEP);
+  const toShip    = offsetPoint(to.x,   to.y,   dx, dy, -SEP);
+
+  return (
+    <g key={flow.id}>
+      {/* ORDER lane */}
+      <line
+        x1={fromOrder.x} y1={fromOrder.y}
+        x2={toOrder.x}   y2={toOrder.y}
+        stroke="currentColor"
+        strokeWidth={2.25}
+        strokeOpacity={0.95}
+        markerEnd="url(#head-order)"
+        vectorEffect="non-scaling-stroke"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ shapeRendering: "geometricPrecision", mixBlendMode: "normal" }}
+      />
+      {/* SHIP lane */}
+      <line
+        x1={fromShip.x} y1={fromShip.y}
+        x2={toShip.x}   y2={toShip.y}
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeOpacity={0.55}
+        markerEnd="url(#head-ship)"
+        vectorEffect="non-scaling-stroke"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ shapeRendering: "geometricPrecision", mixBlendMode: "normal" }}
+      />
+    </g>
+  );
+})}
+
 
         {/* impulses (moving dots with a short tail) */}
         {pulses.map((p) => {
@@ -130,15 +164,10 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
           // base position
           let x = from.x + dx * t;
           let y = from.y + dy * t;
-
-          // Optional lane offset by kind
-          if (p.kind === "order") {
-            const o = offsetPoint(x, y, dx, dy, 6);
-            x = o.x; y = o.y;
-          } else if (p.kind === "ship") {
-            const o = offsetPoint(x, y, dx, dy, -6);
-            x = o.x; y = o.y;
-          }
+            const SEP = 12;
+          // ALWAYS offset: order pulses on +6 lane, ship pulses on -6 lane
+          const laneOffset = p.kind === "ship" ? -SEP : SEP; // default order if kind missing
+          ({ x, y } = offsetPoint(x, y, dx, dy, laneOffset));
 
           const trailTs = [0.72, 0.5, 0.28].map((back) => Math.max(0, t - 0.06 / back));
 
