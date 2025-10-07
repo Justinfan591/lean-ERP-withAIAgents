@@ -23,7 +23,6 @@ export default function App() {
   const overlayRootRef = useRef<HTMLDivElement | null>(null);
 
   const [anchors, setAnchors] = useState<Anchor[]>([]);
-  const [flashed] = useState<Set<string>>(new Set()); // kept for FlowCanvas compatibility
   const [pulses, setPulses] = useState<Pulse[]>([]);
 
   const flows: Flow[] = useMemo(
@@ -127,32 +126,34 @@ export default function App() {
   }, []);
 
   return (
-    <div ref={overlayRootRef} style={{ position: "relative", minHeight: "100vh" }}>
+    <div ref={overlayRootRef} className="relative min-h-screen">
       <DevBanner />
       <TopBar />
 
-      {/* Layout (no outer anchors here) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr", gap: 16, padding: "12px 16px" }}>
-        {/* LEFT column: no SUP anchor here; SUP lives inside GameBoard tile */}
-        <div>
-          <ItemsPanel />
-          <PlannerPanel />
-        </div>
+      {/* Main Layout with improved spacing and max width */}
+      <div className="max-w-[1800px] mx-auto">
+        <div className="grid grid-cols-[280px_1fr_280px] gap-4 p-4">
+          {/* LEFT column: Inventory & Planning */}
+          <div className="space-y-3">
+            <ItemsPanel />
+            <PlannerPanel />
+          </div>
 
-        {/* MIDDLE column: scope anchors to just the board */}
-        <div data-flow-scope="board">
-          <GameBoard />
-        </div>
+          {/* MIDDLE column: Game Board (flow scope) */}
+          <div data-flow-scope="board" className="flex items-start">
+            <GameBoard />
+          </div>
 
-        {/* RIGHT column: no CUST anchor here; CUST lives inside GameBoard tile */}
-        <div>
-          <AgentConsole />
-          <EventFeed />
+          {/* RIGHT column: Agent Console & Events */}
+          <div className="space-y-3">
+            <AgentConsole />
+            <EventFeed />
+          </div>
         </div>
       </div>
 
       {/* Overlay with lines + impulse dots */}
-      <FlowCanvas anchors={anchors} flows={flows} flashed={flashed} pulses={pulses} />
+      <FlowCanvas anchors={anchors} flows={flows} pulses={pulses} />
     </div>
   );
 }

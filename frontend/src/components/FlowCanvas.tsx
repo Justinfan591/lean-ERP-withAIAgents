@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type Anchor = { id: string; x: number; y: number };
 export type Flow = { id: string; from: string; to: string };
@@ -20,11 +20,10 @@ type Pulse = {
 type Props = {
   anchors: Anchor[];
   flows: Flow[];
-  flashed?: Set<string>;
   pulses?: Pulse[];
 };
 
-export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Props) {
+export default function FlowCanvas({ anchors, flows, pulses = [] }: Props) {
   const getAnchor = (id: string) => anchors.find((a) => a.id === id);
 
   const lines = useMemo(() => {
@@ -37,13 +36,6 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
       })
       .filter(Boolean) as { flow: Flow; from: Anchor; to: Anchor }[];
   }, [anchors, flows]);
-
-  // tiny helper to offset perpendicular to a line (positive = one side, negative = the other)
-  const offsetPoint = (x: number, y: number, dx: number, dy: number, k: number) => {
-    const len = Math.hypot(dx, dy) || 1;
-    return { x: x + (-dy / len) * k, y: y + (dx / len) * k };
-  };
-
 
   // RAF tick to update pulse positions
   const [, setTick] = useState(0);
@@ -73,75 +65,46 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
           zIndex: 50,
         }}
       >
-<defs>
-  {/* ORDER lane head */}
-  <marker
-    id="head-order"
-    markerWidth="12"
-    markerHeight="8"
-    refX="10"
-    refY="4"
-    orient="auto"
-    markerUnits="strokeWidth"
-  >
-    <polygon points="0,0 12,4 0,8" fill="currentColor" />
-  </marker>
+        <defs>
+          {/* Arrow marker for flow lines */}
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="10"
+            refX="9"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M0,0 L0,6 L9,3 z" fill="rgba(100, 116, 139, 0.4)" />
+          </marker>
+        </defs>
 
-  {/* SHIP lane head */}
-  <marker
-    id="head-ship"
-    markerWidth="12"
-    markerHeight="8"
-    refX="10"
-    refY="4"
-    orient="auto"
-    markerUnits="strokeWidth"
-  >
-    <polygon points="0,0 12,4 0,8" fill="currentColor" />
-  </marker>
-</defs>
-
-
-        {/* static links: two parallel lanes (order vs ship) */}
+        {/* static connection lines with arrows */}
 {lines.map(({ flow, from, to }) => {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
-
-  // Wider lane separation to avoid overlap artifacts
-  const SEP = 12;
-
-  const fromOrder = offsetPoint(from.x, from.y, dx, dy,  SEP);
-  const toOrder   = offsetPoint(to.x,   to.y,   dx, dy,  SEP);
-  const fromShip  = offsetPoint(from.x, from.y, dx, dy, -SEP);
-  const toShip    = offsetPoint(to.x,   to.y,   dx, dy, -SEP);
-
+  const length = Math.sqrt(dx * dx + dy * dy);
+  
+  // Shorten the line to avoid overlapping with the tile
+  const shortenBy = 40; // pixels to shorten from each end
+  const startX = from.x + (dx * shortenBy) / length;
+  const startY = from.y + (dy * shortenBy) / length;
+  const endX = to.x - (dx * shortenBy) / length;
+  const endY = to.y - (dy * shortenBy) / length;
+  
   return (
     <g key={flow.id}>
-      {/* ORDER lane */}
+      {/* Arrow line */}
       <line
-        x1={fromOrder.x} y1={fromOrder.y}
-        x2={toOrder.x}   y2={toOrder.y}
-        stroke="currentColor"
-        strokeWidth={2.25}
-        strokeOpacity={0.95}
-        markerEnd="url(#head-order)"
-        vectorEffect="non-scaling-stroke"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ shapeRendering: "geometricPrecision", mixBlendMode: "normal" }}
-      />
-      {/* SHIP lane */}
-      <line
-        x1={fromShip.x} y1={fromShip.y}
-        x2={toShip.x}   y2={toShip.y}
-        stroke="currentColor"
+        x1={startX} y1={startY}
+        x2={endX}   y2={endY}
+        stroke="rgba(100, 116, 139, 0.35)"
         strokeWidth={2}
-        strokeOpacity={0.55}
-        markerEnd="url(#head-ship)"
         vectorEffect="non-scaling-stroke"
         strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ shapeRendering: "geometricPrecision", mixBlendMode: "normal" }}
+        markerEnd="url(#arrowhead)"
+        style={{ shapeRendering: "geometricPrecision" }}
       />
     </g>
   );
@@ -161,72 +124,68 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
           const dx = to.x - from.x;
           const dy = to.y - from.y;
 
-          // base position
-          let x = from.x + dx * t;
-          let y = from.y + dy * t;
-            const SEP = 12;
-          // ALWAYS offset: order pulses on +6 lane, ship pulses on -6 lane
-          const laneOffset = p.kind === "ship" ? -SEP : SEP; // default order if kind missing
-          ({ x, y } = offsetPoint(x, y, dx, dy, laneOffset));
+          // base position - no lane offset, single clean path
+          const x = from.x + dx * t;
+          const y = from.y + dy * t;
 
-          const trailTs = [0.72, 0.5, 0.28].map((back) => Math.max(0, t - 0.06 / back));
-
+          const pulseColor = p.kind === "ship" ? "#10b981" : "#3b82f6";
+          
           return (
             <g key={p.id}>
-              {trailTs.map((tt, i) => {
-                let tx = from.x + dx * tt;
-                let ty = from.y + dy * tt;
-                if (p.kind === "order") {
-                  const o = offsetPoint(tx, ty, dx, dy, 6);
-                  tx = o.x; ty = o.y;
-                } else if (p.kind === "ship") {
-                  const o = offsetPoint(tx, ty, dx, dy, -6);
-                  tx = o.x; ty = o.y;
-                }
-                return (
-                  <circle
-                    key={`${p.id}-trail-${i}`}
-                    cx={tx}
-                    cy={ty}
-                    r={3 - i * 0.6}
-                    fill="currentColor"
-                    opacity={0.25 - i * 0.06}
-                  />
-                );
-              })}
-              <circle cx={x} cy={y} r={3.5} fill="currentColor" />
+              {/* Simple pulse dot - no trails or glows */}
+              <circle 
+                cx={x} 
+                cy={y} 
+                r={3} 
+                fill={pulseColor}
+                opacity={0.8}
+              />
             </g>
           );
         })}
 
-        {/* INSERT B: mid-link order labels (e.g., "+12") */}
+        {/* Simplified quantity labels - only show when qty is present */}
         {pulses.map((p) => {
           const from = getAnchor(p.from), to = getAnchor(p.to);
           if (!from || !to || p.qty == null) return null;
           const elapsed = now - p.start;
           if (elapsed < 0 || elapsed > p.duration) return null;
 
-          // midpoint of the (optionally offset) lane
-          const mxBase = (from.x + to.x) / 2;
-          const myBase = (from.y + to.y) / 2;
-
-          let mx = mxBase, my = myBase;
+          // Position near the pulse
+          const t = elapsed / p.duration;
           const dx = to.x - from.x, dy = to.y - from.y;
-          if (p.kind === "order") {
-            const o = offsetPoint(mxBase, myBase, dx, dy, 6);
-            mx = o.x; my = o.y;
-          } else if (p.kind === "ship") {
-            const o = offsetPoint(mxBase, myBase, dx, dy, -6);
-            mx = o.x; my = o.y;
-          }
+          const mx = from.x + dx * t;
+          const my = from.y + dy * t;
 
           // fade out over the pulse lifetime
           const life = 1 - Math.min(1, elapsed / (p.duration * 0.9));
 
+          const labelColor = p.kind === "ship" ? "#10b981" : "#3b82f6";
+          
           return (
-            <g key={`${p.id}-label`} transform={`translate(${mx},${my - 12})`} opacity={life}>
-              <rect x={-18} y={-11} rx={6} ry={6} width={36} height={22} fill="#111" stroke="#333" />
-              <text x={0} y={5} textAnchor="middle" fontSize="11" fill="#fff">
+            <g key={`${p.id}-label`} transform={`translate(${mx},${my - 18})`} opacity={life * 0.8}>
+              {/* Minimal label */}
+              <rect 
+                x={-16} 
+                y={-10} 
+                rx={6} 
+                ry={6} 
+                width={32} 
+                height={20} 
+                fill="rgba(17, 19, 24, 0.9)"
+                stroke={labelColor}
+                strokeWidth={1}
+                strokeOpacity={0.6}
+              />
+              <text 
+                x={0} 
+                y={3} 
+                textAnchor="middle" 
+                fontSize="11" 
+                fontWeight="500"
+                fill={labelColor}
+                fillOpacity={0.9}
+              >
                 +{p.qty}
               </text>
             </g>
@@ -234,13 +193,6 @@ export default function FlowCanvas({ anchors, flows, flashed, pulses = [] }: Pro
         })}
       </svg>
 
-      <style>
-        {`
-          .flow-line { color: #111; opacity: 0.85; }
-          .flow-line.flashing { animation: flow-dash 900ms linear infinite; }
-          @keyframes flow-dash { to { stroke-dashoffset: -40; } }
-        `}
-      </style>
     </>
   );
 }

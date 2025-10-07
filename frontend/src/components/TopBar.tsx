@@ -58,45 +58,64 @@ export default function TopBar() {
   }, [auto, step]);
 
   return (
-    <div className="w-full flex items-center justify-between px-4 py-3 bg-neutral-900/70 border-b border-neutral-800">
-      <div className="text-lg font-semibold">
-        Lean AI-ERP — Day {simDay?.day ?? summary?.day ?? "…"}
+    <div className="w-full flex items-center justify-between px-6 py-4 glass border-b border-neutral-800/50 backdrop-blur-xl sticky top-0 z-50">
+      {/* Left: Title with gradient accent */}
+      <div className="flex items-center gap-4">
+        <div className="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent">
+          Lean AI-ERP
+        </div>
+        <div className="h-6 w-px bg-neutral-700"></div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+          <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+          <span className="text-sm font-semibold text-blue-100">Day {simDay?.day ?? summary?.day ?? "…"}</span>
+        </div>
       </div>
+
+      {/* Right: Metrics and Controls */}
       <div className="flex items-center gap-6">
-        <div className="text-sm text-neutral-400">
-          OTIF{" "}
-          <span className="text-neutral-100 font-medium">
-            {(summary?.otif ?? 0).toFixed(2)}
-          </span>
+        {/* Metrics */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <div className="text-xs font-medium text-emerald-400 uppercase tracking-wider">OTIF</div>
+            <div className="text-lg font-bold text-emerald-100">
+              {(summary?.otif ?? 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+            <div className="text-xs font-medium text-red-400 uppercase tracking-wider">Stockouts</div>
+            <div className="text-lg font-bold text-red-100">
+              {summary?.stockouts ?? 0}
+            </div>
+          </div>
         </div>
-        <div className="text-sm text-neutral-400">
-          Stockouts{" "}
-          <span className="text-red-400 font-medium">
-            {summary?.stockouts ?? 0}
-          </span>
-        </div>
-        <div className="flex gap-2">
+
+        {/* Divider */}
+        <div className="h-8 w-px bg-neutral-700"></div>
+
+        {/* Controls */}
+        <div className="flex gap-3">
           <button
             onClick={() => {
-              // Optional: pre-animate for instant feedback, even before server responds
               animateDayTick();
               step();
             }}
             disabled={isPending}
-            className="px-3 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 flex items-center gap-2 disabled:opacity-60"
+            className="group relative px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border border-blue-400/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
           >
-            <Play size={16} /> Step
+            <Play size={16} className="transition-transform group-hover:scale-110" />
+            <span className="font-medium">Step</span>
           </button>
           <button
             onClick={() => setAuto(v => !v)}
             className={
-              "px-3 py-1.5 rounded-xl border flex items-center gap-2 " +
+              "relative px-4 py-2 rounded-lg border flex items-center gap-2 font-medium transition-all duration-200 " +
               (auto
-                ? "bg-neutral-700 border-neutral-600"
-                : "bg-neutral-800 border-neutral-700 hover:bg-neutral-700")
+                ? "bg-gradient-to-r from-purple-600 to-purple-500 border-purple-400/30 shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/30"
+                : "bg-neutral-800/80 border-neutral-700/50 hover:bg-neutral-700/80 hover:border-neutral-600/50 hover:shadow-md")
             }
           >
-            <FastForward size={16} /> {auto ? "Stop" : "Auto"}
+            <FastForward size={16} className={auto ? "animate-pulse" : ""} />
+            <span>{auto ? "Stop" : "Auto"}</span>
           </button>
         </div>
       </div>

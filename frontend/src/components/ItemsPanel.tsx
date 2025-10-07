@@ -34,65 +34,77 @@ export default function ItemsPanel() {
   const items = data;
 
   return (
-    <div className="p-4">
-      <h3 className="text-sm font-semibold tracking-wide text-zinc-200 mb-3">
-        Items (live from backend)
-      </h3>
+    <div className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold tracking-wide text-white flex items-center gap-2">
+          <div className="w-0.5 h-4 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+          Inventory Items
+        </h3>
+        <span className="text-[10px] text-neutral-400 bg-neutral-800/50 px-1.5 py-0.5 rounded-md">
+          Live
+        </span>
+      </div>
 
-      <div className="p-4 rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-sm shadow-[0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-900/50">
-            <tr className="text-zinc-400">
-              <th className="text-left px-3 py-2">SKU</th>
-              <th className="text-left px-3 py-2">Name</th>
-              <th className="text-right px-3 py-2">On Hand</th>
-              <th className="text-right px-3 py-2">Reorder Pt.</th>
-              <th className="text-right px-3 py-2">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => {
-              const below = it.on_hand <= it.reorder_point;
-              return (
-                <tr
-                  key={it.id}
-                  className="border-t border-zinc-800 hover:bg-zinc-900/30 cursor-pointer"
-                  onClick={() => setSelectedId(it.id)}
-                >
-                  <td className="px-3 py-2 font-mono">{it.sku}</td>
-                  <td className="px-3 py-2">{it.name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {it.on_hand}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {it.reorder_point}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <span
-                      className={
-                        "inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full " +
-                        (below
-                          ? "bg-amber-500/10 text-amber-300 border border-amber-600/40"
-                          : "bg-emerald-500/10 text-emerald-300 border border-emerald-600/40")
-                      }
-                    >
-                      <span className="size-1.5 rounded-full bg-current"></span>
-                      {below ? "Reorder soon" : "Healthy"}
-                    </span>
+      <div className="rounded-xl border border-neutral-800/50 bg-gradient-to-br from-neutral-900/80 to-neutral-900/60 backdrop-blur-sm overflow-hidden shadow-lg">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-neutral-800/40 border-b border-neutral-700/50">
+                <th className="text-left px-2 py-2 text-[10px] font-semibold text-neutral-300 uppercase tracking-wider">SKU</th>
+                <th className="text-left px-2 py-2 text-[10px] font-semibold text-neutral-300 uppercase tracking-wider">Name</th>
+                <th className="text-right px-2 py-2 text-[10px] font-semibold text-neutral-300 uppercase tracking-wider">Qty</th>
+                <th className="text-right px-2 py-2 text-[10px] font-semibold text-neutral-300 uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it, idx) => {
+                const below = it.on_hand <= it.reorder_point;
+                return (
+                  <tr
+                    key={it.id}
+                    className="border-t border-neutral-800/50 hover:bg-blue-500/5 cursor-pointer transition-colors duration-200 group"
+                    onClick={() => setSelectedId(it.id)}
+                    style={{ animationDelay: `${idx * 30}ms` }}
+                  >
+                    <td className="px-2 py-2 font-mono text-blue-300 text-xs group-hover:text-blue-200">
+                      {it.sku}
+                    </td>
+                    <td className="px-2 py-2 text-neutral-200 group-hover:text-white text-xs truncate">
+                      {it.name}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums font-semibold text-neutral-100 text-xs">
+                      {it.on_hand}
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <span
+                        className={
+                          "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded transition-all duration-200 " +
+                          (below
+                            ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                            : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30")
+                        }
+                      >
+                        <span className={
+                          "w-1 h-1 rounded-full " +
+                          (below ? "bg-amber-400 animate-pulse" : "bg-emerald-400")
+                        }></span>
+                        {below ? "Low" : "OK"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {items.length === 0 && (
+                <tr>
+                  <td className="px-2 py-6 text-center text-neutral-500 text-xs" colSpan={4}>
+                    No items found.
                   </td>
                 </tr>
-              );
-            })}
-
-            {items.length === 0 && (
-              <tr>
-                <td className="px-3 py-6 text-center text-zinc-500" colSpan={5}>
-                  No items found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Drawer mounts here */}
