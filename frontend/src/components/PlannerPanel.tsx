@@ -1,36 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiGetBE, apiPostBE } from "../lib/api";
+import { apiGet, apiPost } from "../lib/api";
+import type { PurchaseOrder, Email } from "../types";
+import { useState } from "react";
+import BuyerAgentModal from "./BuyerAgentModal";
 
 type Proposal = {
-  proposal_id: string;
+  id: string;
+  type: "NEW_PO";
   item_id: number;
-  sku: string;
-  name: string;
-  suggested_qty: number;
+  qty: number;
+  due_day: number;
   reason: string;
 };
 
 export default function PlannerPanel() {
   const qc = useQueryClient();
+  const [buyerResult, setBuyerResult] = useState<{ po: PurchaseOrder; email: Email } | null>(null);
+  
   const { data = [], isLoading } = useQuery<Proposal[]>({
     queryKey: ["proposals"],
-    queryFn: () => apiGetBE("/agents/planner/proposals"),
-    refetchInterval: 10_000, // light auto-refresh
+    queryFn: () => {
+      console.log("📋 PlannerPanel: Fetching proposals...");
+      return apiGet("/agents/planner/proposals");
+    },
+    refetchInterval: 10_000,
   });
 
-  const act = useMutation({
-    mutationFn: (p: { action: "APPROVE" | "REJECT"; proposal: Proposal }) =>
-      apiPostBE("/agents/planner/act", {
-        action: p.action,
-        item_id: p.proposal.item_id,
-        qty: p.action === "APPROVE" ? p.proposal.suggested_qty : 0,
-        proposal_id: p.proposal.proposal_id,
-        sku: p.proposal.sku,
-      }),
-    onSuccess: () => {
+  console.log("📊 PlannerPanel: Proposals data:", data);
+
+  const approveMutation = useMutation({
+    mutationFn: (proposalId: string) => {
+      console.log("🤖 Buyer Agent: Approving proposal", proposalId);
+      return apiPost("/agents/buyer/approve", { proposal_id: proposalId });
+    },
+    onSuccess: (result) => {
+      console.log("✅ Buyer Agent: Success!", result);
+      setBuyerResult(result as { po: PurchaseOrder; email: Email });
       qc.invalidateQueries({ queryKey: ["proposals"] });
-      qc.invalidateQueries({ queryKey: ["events"] });   // if feed is real
-      qc.invalidateQueries({ queryKey: ["items"] });     // proposals may change after POs
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (error) => {
+      console.error("❌ Buyer Agent: Error", error);
     },
   });
 
@@ -67,7 +77,7 @@ export default function PlannerPanel() {
       <div className="space-y-2">
         {data.map((pr, idx) => (
           <div 
-            key={pr.proposal_id} 
+            key={pr.id} 
             className="group relative rounded-lg border border-neutral-800/50 bg-gradient-to-br from-neutral-900/80 to-neutral-900/60 p-2.5 hover:border-purple-500/30 transition-all duration-300 animate-fade-in"
             style={{ animationDelay: `${idx * 50}ms` }}
           >
@@ -78,10 +88,8 @@ export default function PlannerPanel() {
             <div className="space-y-1.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-white text-xs flex items-center gap-1.5">
-                    <span className="font-mono text-purple-300">{pr.sku}</span>
-                    <span className="text-neutral-500">•</span>
-                    <span className="truncate">{pr.name}</span>
+                  <div className="font-semibold text-white text-xs">
+                    <span>PO Request - Item #{pr.item_id}</span>
                   </div>
                   <div className="text-[10px] text-neutral-400 mt-0.5 line-clamp-2">
                     {pr.reason}
@@ -89,22 +97,21 @@ export default function PlannerPanel() {
                 </div>
                 <div className="flex items-center gap-0.5 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 flex-shrink-0">
                   <span className="text-[10px] text-purple-400 font-medium">Qty:</span>
-                  <span className="text-xs font-bold text-purple-200">{pr.suggested_qty}</span>
+                  <span className="text-xs font-bold text-purple-200">{pr.qty}</span>
                 </div>
               </div>
               
               {/* Actions */}
               <div className="flex gap-1.5 pt-1">
                 <button
-                  onClick={() => act.mutate({ action: "APPROVE", proposal: pr })}
-                  disabled={act.isPending}
+                  onClick={() => approveMutation.mutate(pr.id)}
+                  disabled={approveMutation.isPending}
                   className="flex-1 text-[10px] font-medium px-2 py-1 rounded bg-emerald-600/70 hover:bg-emerald-500/70 text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  ✓ Approve
+                  {approveMutation.isPending ? "..." : "✓ Approve"}
                 </button>
                 <button
-                  onClick={() => act.mutate({ action: "REJECT", proposal: pr })}
-                  disabled={act.isPending}
+                  disabled={approveMutation.isPending}
                   className="flex-1 text-[10px] font-medium px-2 py-1 rounded bg-neutral-800/70 hover:bg-neutral-700/70 text-neutral-300 hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ✕ Reject
@@ -114,6 +121,15 @@ export default function PlannerPanel() {
           </div>
         ))}
       </div>
+
+      {/* Buyer Agent Modal */}
+      {buyerResult && (
+        <BuyerAgentModal
+          po={buyerResult.po}
+          email={buyerResult.email}
+          onClose={() => setBuyerResult(null)}
+        />
+      )}
     </div>
   );
 }

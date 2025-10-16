@@ -63,13 +63,8 @@ export default function AgentConsole() {
                     <div className="text-xs text-neutral-400 line-clamp-2">
                       {p.reason}
                     </div>
-                    <div className="flex gap-1.5">
-                      <button className="flex-1 text-xs font-medium px-2 py-1 rounded bg-emerald-600/70 hover:bg-emerald-500/70 text-white transition-colors">
-                        ✓
-                      </button>
-                      <button className="flex-1 text-xs font-medium px-2 py-1 rounded bg-neutral-800/70 hover:bg-neutral-700/70 text-neutral-300 transition-colors">
-                        ✕
-                      </button>
+                    <div className="text-xs text-neutral-500 mt-1">
+                      (View proposals in AI Planner panel)
                     </div>
                   </div>
                 </div>
@@ -77,7 +72,7 @@ export default function AgentConsole() {
             </div>
           ) : (
             <div className="p-4 text-center">
-              <div className="text-neutral-500 text-xs">No proposals</div>
+              <div className="text-neutral-500 text-xs">No active tasks</div>
             </div>
           )}
         </div>

@@ -6,12 +6,12 @@ import "./index.css";
 
 const qc = new QueryClient();
 
-// // Start MSW in the background; don't block render.
-// if (import.meta.env.DEV) {
-//   import("./mocks/browser").then(({ worker }) => {
-//     worker.start({ onUnhandledRequest: "bypass" });
-//   });
-// }
+// Start MSW in the background; don't block render.
+if (import.meta.env.DEV) {
+  import("./mocks/browser").then(({ worker }) => {
+    worker.start({ onUnhandledRequest: "bypass" });
+  });
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
